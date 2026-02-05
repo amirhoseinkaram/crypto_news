@@ -1,72 +1,43 @@
 import os
 import requests
-import google.generativeai as genai
-import asyncio
-from telegram import Bot
 
-# دریافت رمزها
-TOKEN = os.getenv("TOKEN")
-CHANNEL_ID = os.getenv("CHANNEL_ID")
+# دریافت کلید از گیت‌هاب
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 
-# تنظیم هوش مصنوعی
-if GEMINI_KEY:
-    genai.configure(api_key=GEMINI_KEY)
-    # از مدل فلش استفاده میکنیم که جدیده
-    model = genai.GenerativeModel('gemini-1.5-flash')
-else:
-    print("⚠️ هشدار: کلید جمنای پیدا نشد!")
+def list_models():
+    if not GEMINI_KEY:
+        print("❌ کلید GEMINI_API_KEY پیدا نشد!")
+        return
 
-def get_latest_news():
-    url = "https://min-api.cryptocompare.com/data/v2/news/?lang=EN"
+    print("🔍 در حال دریافت لیست مدل‌های فعال برای شما...")
+    
+    # استفاده از لینک مستقیم API (بدون کتابخانه پایتون که ارور نده)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_KEY}"
+    
     try:
         response = requests.get(url, timeout=10)
-        data = response.json()
-        latest = data['Data'][0]
-        return latest['title'], latest['body'], latest['url']
-    except Exception as e:
-        print(f"❌ خطا در دریافت خبر: {e}")
-        return None, None, None
-
-def ai_rewrite(title, body):
-    if not GEMINI_KEY: return None
-    print("🧠 هوش مصنوعی در حال نوشتن...")
-    prompt = f"""
-    You are a professional crypto journalist for a Persian Telegram channel.
-    Rewrite the following news into exciting, engaging Persian (Farsi).
-    Rules:
-    1. Start with a catchy headline with emojis.
-    2. Summarize the core message in 2-3 sentences.
-    3. Tone: Casual, hype, professional.
-    4. NO "According to report". Just the news.
-    5. End with 3 viral hashtags.
-    News Title: {title}
-    News Body: {body}
-    """
-    try:
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        print(f"❌ خطا در جمنای: {e}")
-        return None
-
-async def send_news():
-    if not TOKEN:
-        print("❌ توکن تلگرام نیست!")
-        return
-    title, body, url = get_latest_news()
-    if title:
-        print(f"✅ خبر دریافت شد: {title}")
-        persian_text = ai_rewrite(title, body)
-        if persian_text:
-            msg = f"{persian_text}\n\n🔗 [مشاهده منبع خبر]({url})\n🆔 @gold\_price\_rls"
-            bot = Bot(token=TOKEN)
-            await bot.send_message(chat_id=CHANNEL_ID, text=msg, parse_mode='Markdown')
-            print("🚀 پیام ارسال شد!")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print("\n📋 === لیست مدل‌های مجاز === ")
+            found_any = False
+            
+            for model in data.get('models', []):
+                # فقط مدل‌هایی که متن تولید میکنن رو نشون بده
+                if 'generateContent' in model.get('supportedGenerationMethods', []):
+                    # اسم مدل رو تمیز چاپ کن
+                    print(f"✅ Name: {model['name']}")
+                    print(f"   Display: {model['displayName']}")
+                    print("-" * 30)
+                    found_any = True
+            
+            if not found_any:
+                print("❌ هیچ مدلی که قابلیت تولید متن داشته باشه پیدا نشد!")
         else:
-            print("⚠️ هوش مصنوعی خروجی نداد.")
-    else:
-        print("⚠️ خبری پیدا نشد.")
+            print(f"❌ ارور سمت گوگل: {response.text}")
+            
+    except Exception as e:
+        print(f"❌ خطای ارتباطی: {e}")
 
 if __name__ == '__main__':
-    asyncio.run(send_news())
+    list_models()
