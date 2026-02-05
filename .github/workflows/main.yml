@@ -1,0 +1,27 @@
+name: Crypto News Bot
+
+on:
+  workflow_dispatch: # این یعنی دکمه دستی برای اجرا داشته باشه
+
+jobs:
+  run-news:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+
+      - name: Install libraries
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Bot
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python main.py
